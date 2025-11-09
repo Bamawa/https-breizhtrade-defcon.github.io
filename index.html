@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BREIZH TRADE DEFCON – BTKI V3.5</title>
+  <style>
+    body { font-family: 'Roboto', sans-serif; background-color: #0e0e0e; color: #f1f1f1; text-align: center; padding: 40px; }
+    h1 { font-size: 2rem; color: #ff4444; margin-bottom: 10px; }
+    h2 { color: #bbb; margin-bottom: 20px; }
+    .broker-button { display: inline-block; background-color: #ff4444; color: white; font-weight: bold; padding: 12px 24px; border-radius: 8px; text-decoration: none; transition: 0.3s; margin-bottom: 30px; box-shadow: 0 0 15px rgba(255, 68, 68, 0.3); }
+    .broker-button:hover { background-color: #e33b3b; box-shadow: 0 0 20px rgba(255, 68, 68, 0.6); transform: scale(1.03); }
+    select { background-color: #181818; color: white; border-radius: 8px; border: 1px solid #ff4444; padding: 8px; margin-bottom: 20px; }
+    canvas { background: #181818; border-radius: 12px; padding: 20px; max-width: 800px; margin: 0 auto; box-shadow: 0 0 20px rgba(255, 0, 0, 0.2); }
+    .score { font-size: 2.5rem; font-weight: bold; margin-top: 20px; }
+    .updated { font-size: 0.9rem; color: #777; margin-top: 10px; }
+    .module-status { display: flex; justify-content: center; flex-wrap: wrap; margin-top: 30px; }
+    .module { background: #181818; border-radius: 12px; margin: 10px; padding: 20px; width: 200px; box-shadow: 0 0 10px rgba(255, 255, 255, 0.1); }
+    .module h3 { margin-bottom: 10px; font-size: 1.1rem; }
+    .led { width: 22px; height: 22px; border-radius: 50%; margin: 10px auto; box-shadow: 0 0 15px currentColor; }
+    @keyframes clignote { 0% { opacity: 1; } 50% { opacity: 0.4; } 100% { opacity: 1; } }
+    .clignote { animation: clignote 1s infinite; }
+    footer { margin-top: 60px; font-size: 0.8rem; color: #777; max-width: 800px; margin-left: auto; margin-right: auto; line-height: 1.4; }
+  </style>
+</head>
+<body>
+  <h1>BREIZH TRADE DEFCON V3.5</h1>
+  <h2>Breizh Trade Krach Index (BTKI) – Analyse dynamique</h2>
+
+  <a href="https://link-pso.xtb.com/pso/IRtyU" class="broker-button" target="_blank">🚀 Ouvrir un compte chez XTB – Broker recommandé par BREIZH TRADE</a>
+
+  <select id="periodSelector">
+    <option value="1m">1 dernier mois</option>
+    <option value="3m">3 derniers mois</option>
+    <option value="6m">6 derniers mois</option>
+    <option value="12m">12 derniers mois</option>
+  </select>
+
+  <canvas id="btkiChart" width="800" height="400"></canvas>
+  <div class="score" id="scoreDisplay">Chargement du score...</div>
+  <div class="updated" id="updateTime"></div>
+  <section class="module-status" id="modules"></section>
+
+  <footer>
+    <p><strong>Avertissement légal :</strong> Les informations présentées sur cette page sont fournies à titre informatif et éducatif. Elles ne constituent en aucun cas un conseil en investissement, une recommandation d'achat ou de vente, ni une incitation à investir sur les marchés financiers. Les marchés comportent des risques de pertes en capital. BREIZH TRADE et ses partenaires ne sauraient être tenus responsables des décisions prises sur la base de ces informations. Investir sur les produits financiers (notamment les CFD) comporte un risque élevé de perte rapide de capital.</p>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    async function getBTKIData(period = '3m') {
+      let labels = [];
+      let values = [];
+
+      switch(period) {
+        case '1m':
+          labels = ['S-4', 'S-3', 'S-2', 'S-1'];
+          values = [6.2, 8.5, 9.8, 10.3];
+          break;
+        case '3m':
+          labels = ['M-3','M-2','M-1'];
+          values = [10.9, 12.7, 17.3];
+          break;
+        case '6m':
+          labels = ['M-6','M-5','M-4','M-3','M-2','M-1'];
+          values = [5.2, 8.1, 10.3, 12.7, 15.1, 17.3];
+          break;
+        case '12m':
+          labels = ['M-12','M-11','M-10','M-9','M-8','M-7','M-6','M-5','M-4','M-3','M-2','M-1'];
+          values = [4.1, 4.6, 5.8, 6.2, 7.9, 8.8, 9.4, 11.2, 13.6, 14.8, 15.7, 17.3];
+          break;
+      }
+
+      const current = values[values.length - 1];
+      return {
+        weeks: labels,
+        values: values,
+        current: current,
+        modules: {
+          Macro: current < 6 ? 'green' : current < 10 ? 'yellow' : current < 14 ? 'orange' : current < 17 ? 'red' : 'darkred',
+          Geopolitique: 'orange',
+          Sentiment: 'red',
+          Technique: 'orange',
+          Derives: 'yellow',
+          CoherenceIA: 'orange',
+          Valorisation: current > 14 ? 'darkred' : 'orange'
+        }
+      };
+    }
+
+    function colorFromScore(score) {
+      if (score < 6) return 'green';
+      if (score < 10) return 'yellow';
+      if (score < 13) return 'orange';
+      if (score < 17) return 'red';
+      return 'darkred';
+    }
+
+    let chartInstance = null;
+
+    async function renderChart(period = '3m') {
+      const btki = await getBTKIData(period);
+      const ctx = document.getElementById('btkiChart').getContext('2d');
+      if (chartInstance) chartInstance.destroy();
+
+      chartInstance = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: btki.weeks,
+          datasets: [{ label: 'BTKI (Indice de Risque Global)', data: btki.values, borderColor: colorFromScore(btki.current), borderWidth: 3, tension: 0.3, fill: true }]
+        },
+        options: {
+          scales: { y: { min: 0, max: 20, ticks: { color: '#fff' }, grid: { color: '#333' } }, x: { ticks: { color: '#fff' }, grid: { color: '#222' } } },
+          plugins: { legend: { display: false }, title: { display: true, text: `Évolution BTKI sur ${period === '12m' ? '12 mois' : period === '6m' ? '6 mois' : period === '3m' ? '3 mois' : '1 mois'}`, color: '#fff' } }
+        }
+      });
+
+      let riskText = '';
+      if (btki.current < 6) riskText = 'Risque Faible – Marchés stables, aucune alerte immédiate.';
+      else if (btki.current < 10) riskText = 'Risque Modéré – Quelques tensions, à surveiller.';
+      else if (btki.current < 14) riskText = 'Risque Élevé – Volatilité accrue, prudence requise.';
+      else if (btki.current < 17) riskText = 'Risque Critique – Stress croissant sur les marchés.';
+      else riskText = 'Risque de Krach Imminent – Marchés extrêmement instables !';
+
+      document.getElementById('scoreDisplay').textContent = `Score actuel : ${btki.current.toFixed(1)} / 20 (${riskText})`;
+      document.getElementById('updateTime').textContent = `Dernière mise à jour : ${new Date().toLocaleString('fr-FR')}`;
+
+      const modulesContainer = document.getElementById('modules');
+      modulesContainer.innerHTML = '';
+      Object.entries(btki.modules).forEach(([name, status]) => {
+        const div = document.createElement('div');
+        div.className = 'module';
+        let ledColor = '';
+        switch (status) {
+          case 'green': ledColor = '#4CAF50'; break;
+          case 'yellow': ledColor = '#FFC107'; break;
+          case 'orange': ledColor = '#FF9800'; break;
+          case 'red': ledColor = '#F44336'; break;
+          case 'darkred': ledColor = '#b71c1c'; break;
+          default: ledColor = '#777'; break;
+        }
+        const blink = (status === 'red' || status === 'darkred') ? 'clignote' : '';
+        div.innerHTML = `<h3>${name}</h3><div class="led ${blink}" style="background-color: ${ledColor}; color: ${ledColor}"></div>`;
+        modulesContainer.appendChild(div);
+      });
+    }
+
+    document.getElementById('periodSelector').addEventListener('change', (e) => {
+      renderChart(e.target.value);
+    });
+
+    renderChart();
+    setInterval(renderChart, 3600000);
+  </script>
+</body>
+</html>
